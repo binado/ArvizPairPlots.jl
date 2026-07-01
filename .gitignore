@@ -1,5 +1,6 @@
 *.md
 !README.md
+!AGENTS.md
 Manifest.toml
 coverage/
 /examples/centered_eight_globals.png
