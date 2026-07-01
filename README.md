@@ -1,0 +1,70 @@
+# ArviZPairPlots.jl
+
+`ArviZPairPlots.jl` connects
+[`InferenceObjects.InferenceData`](https://julia.arviz.org/InferenceObjects/stable/)
+to [`PairPlots.jl`](https://sefffal.github.io/PairPlots.jl/stable/). It converts an
+inference-data group to a wide `DataFrame`, or plots it directly while combining
+chains.
+
+## Installation
+
+Once registered, install the package with:
+
+```julia
+using Pkg
+Pkg.add("ArviZPairPlots")
+```
+
+ArviZPairPlots requires Julia 1.10 or later.
+
+## Usage
+
+NetCDF loading remains explicit so that `NCDatasets.jl` is an optional I/O
+dependency:
+
+```julia
+using ArviZPairPlots, InferenceObjects, NCDatasets
+
+idata = from_netcdf("chains.nc")
+df = inference_data_to_dataframe(idata)
+fig = pairplot(idata; var_names=[:μ, :τ])
+```
+
+Both functions accept `group`, `var_names`, and `coords`. Variable names may be
+symbols or strings. Coordinate selectors are forwarded to InferenceObjects:
+
+```julia
+using DimensionalData: At
+
+df = inference_data_to_dataframe(
+    idata;
+    group=:prior,
+    var_names=["θ", "τ"],
+    coords=(school=At(["Choate", "Deerfield"]),),
+)
+```
+
+The resulting data frame begins with `chain` and `draw`. Variables with other
+dimensions are expanded into columns such as `θ[school=Choate]`. These sample
+identifier columns are removed before data is delegated to PairPlots, and all
+other `pairplot` keywords are forwarded unchanged.
+
+For a custom Makie layout, convert explicitly:
+
+```julia
+using DataFrames: Not, select
+
+df = inference_data_to_dataframe(idata)
+pairplot(grid, select(df, Not([:chain, :draw])))
+```
+
+## Scope
+
+Version 0.1 combines chains and supports exact variable selection. Divergence
+highlighting, chain-split series, regular-expression variable filtering, direct
+GridLayout dispatch for `InferenceData`, and `pairplot(path)` are intentionally
+outside the initial API.
+
+## License
+
+MIT
