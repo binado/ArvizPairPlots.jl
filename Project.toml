@@ -1,6 +1,6 @@
 name = "ArviZPairPlots"
 uuid = "9a5774dc-9004-45f0-b6a1-6a451db8e897"
-authors = ["ArviZPairPlots.jl contributors"]
+authors = ["Bernardo Veronese <bernardopveronese@gmail.com>"]
 version = "0.1.0"
 
 [deps]

@@ -1,5 +1,8 @@
 # ArviZPairPlots.jl
 
+[![CI](https://github.com/binado/ArvizPairPlots.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/binado/ArvizPairPlots.jl/actions/workflows/CI.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 `ArviZPairPlots.jl` connects
 [`InferenceObjects.InferenceData`](https://julia.arviz.org/InferenceObjects/stable/)
 to [`PairPlots.jl`](https://sefffal.github.io/PairPlots.jl/stable/). It converts an
@@ -49,13 +52,17 @@ dimensions are expanded into columns such as `θ[school=Choate]`. These sample
 identifier columns are removed before data is delegated to PairPlots, and all
 other `pairplot` keywords are forwarded unchanged.
 
-For a custom Makie layout, convert explicitly:
+For a custom Makie layout, convert explicitly and pass the table to a grid
+position:
 
 ```julia
+using CairoMakie
 using DataFrames: Not, select
 
 df = inference_data_to_dataframe(idata)
-pairplot(grid, select(df, Not([:chain, :draw])))
+fig = Figure()
+pairplot(fig[1, 1], select(df, Not([:chain, :draw])))
+fig
 ```
 
 ## Worked example
