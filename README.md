@@ -15,7 +15,7 @@ using Pkg
 Pkg.add("ArviZPairPlots")
 ```
 
-ArviZPairPlots requires Julia 1.10 or later.
+ArviZPairPlots requires Julia 1.11 or later.
 
 ## Usage
 
@@ -57,6 +57,23 @@ using DataFrames: Not, select
 df = inference_data_to_dataframe(idata)
 pairplot(grid, select(df, Not([:chain, :draw])))
 ```
+
+## Worked example
+
+The centered-eight example loads an `InferenceData` object with
+[`ArviZExampleData.jl`](https://julia.arviz.org/ArviZExampleData/stable/) and
+saves one pair plot for the global parameters and another that also includes
+two school-level parameters. From the repository root, instantiate its separate
+environment and run the script:
+
+```sh
+julia --project=examples -e 'using Pkg; Pkg.instantiate()'
+julia --project=examples examples/centered_eight.jl
+```
+
+The first run downloads and caches the example data. The generated images are
+written to `examples/centered_eight_globals.png` and
+`examples/centered_eight_schools.png`.
 
 ## Scope
 

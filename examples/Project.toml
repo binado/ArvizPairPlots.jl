@@ -1,0 +1,15 @@
+[deps]
+ArviZExampleData = "2f96bb34-afd9-46ae-bcd0-9b2d4372fe3c"
+ArviZPairPlots = "9a5774dc-9004-45f0-b6a1-6a451db8e897"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
+
+[sources]
+ArviZPairPlots = {path = ".."}
+
+[compat]
+ArviZExampleData = "0.3"
+ArviZPairPlots = "0.1"
+CairoMakie = "0.15"
+DimensionalData = "0.29, 0.30"
+julia = "1.11"

@@ -6,7 +6,7 @@ This repository contains the `ArviZPairPlots` Julia package. `src/ArviZPairPlots
 
 ## Build, Test, and Development Commands
 
-Run commands from the repository root with Julia 1.10 or newer:
+Run commands from the repository root with Julia 1.11 or newer:
 
 ```sh
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
