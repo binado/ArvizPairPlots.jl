@@ -29,8 +29,14 @@ dependency:
 using ArviZPairPlots, InferenceObjects, NCDatasets
 
 idata = from_netcdf("chains.nc")
-df = inference_data_to_dataframe(idata)
 fig = pairplot(idata; var_names=[:μ, :τ])
+```
+
+The conversion to a wide `DataFrame` is exposed separately, so the same data can
+be inspected or fed into other tools:
+
+```julia
+df = inference_data_to_dataframe(idata)
 ```
 
 Both functions accept `group`, `var_names`, and `coords`. Variable names may be
