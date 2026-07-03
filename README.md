@@ -5,9 +5,10 @@
 
 `ArviZPairPlots.jl` connects
 [`InferenceObjects.InferenceData`](https://julia.arviz.org/InferenceObjects/stable/)
-to [`PairPlots.jl`](https://sefffal.github.io/PairPlots.jl/stable/). It converts an
-inference-data group to a wide `DataFrame`, or plots it directly while combining
-chains.
+to [`PairPlots.jl`](https://sefffal.github.io/PairPlots.jl/stable/). It plots
+scalar inference-data groups directly through the Tables.jl interface, while
+handling group selection, variable filtering, and automatic removal of sample
+identifier columns.
 
 ## Installation
 
@@ -32,68 +33,62 @@ idata = from_netcdf("chains.nc")
 fig = pairplot(idata; var_names=[:μ, :τ])
 ```
 
-The conversion to a wide `DataFrame` is exposed separately, so the same data can
-be inspected or fed into other tools:
-
-```julia
-df = inference_data_to_dataframe(idata)
-```
-
-Both functions accept `group`, `var_names`, and `coords`. Variable names may be
+`pairplot` accepts `group`, `var_names`, and `coords`. Variable names may be
 symbols or strings. Coordinate selectors are forwarded to InferenceObjects:
 
 ```julia
 using DimensionalData: At
 
-df = inference_data_to_dataframe(
+fig = pairplot(
     idata;
     group=:prior,
     var_names=["θ", "τ"],
-    coords=(school=At(["Choate", "Deerfield"]),),
 )
 ```
 
-The resulting data frame begins with `chain` and `draw`. Variables with other
-dimensions are expanded into columns such as `θ[school=Choate]`. These sample
-identifier columns are removed before data is delegated to PairPlots, and all
-other `pairplot` keywords are forwarded unchanged.
+Sample identifier columns (`chain` and `draw`) are excluded automatically before
+data is passed to PairPlots. All other `pairplot` keywords are forwarded
+unchanged.
 
-For a custom Makie layout, convert explicitly and pass the table to a grid
-position:
+For a custom Makie layout, pass a grid position as the first argument:
 
 ```julia
 using CairoMakie
-using DataFrames: Not, select
 
-df = inference_data_to_dataframe(idata)
 fig = Figure()
-pairplot(fig[1, 1], select(df, Not([:chain, :draw])))
+pairplot(fig[1, 1], idata; var_names=[:μ, :τ])
 fig
 ```
+
+To inspect tabular data directly, use InferenceObjects' native Tables interface or
+convert with `DataFrame(idata.posterior)` from DataFrames.jl.
 
 ## Worked example
 
 The centered-eight example loads an `InferenceData` object with
 [`ArviZExampleData.jl`](https://julia.arviz.org/ArviZExampleData/stable/) and
-saves one pair plot for the global parameters and another that also includes
-two school-level parameters. From the repository root, instantiate its separate
-environment and run the script:
+saves a pair plot for the global parameters. From the repository root,
+instantiate its separate environment and run the script:
 
 ```sh
 julia --project=examples -e 'using Pkg; Pkg.instantiate()'
 julia --project=examples examples/centered_eight.jl
 ```
 
-The first run downloads and caches the example data. The generated images are
-written to `examples/centered_eight_globals.png` and
-`examples/centered_eight_schools.png`.
+The first run downloads and caches the example data. The generated image is
+written to `examples/centered_eight_globals.png`.
 
 ## Scope
 
-Version 0.1 combines chains and supports exact variable selection. Divergence
-highlighting, chain-split series, regular-expression variable filtering, direct
-GridLayout dispatch for `InferenceData`, and `pairplot(path)` are intentionally
-outside the initial API.
+Version 0.2 plots scalar variables only (chain and draw dimensions). Variables
+with additional dimensions are rejected with an explicit error. Divergence
+highlighting, chain-split series, regular-expression variable filtering, and
+`pairplot(path)` are intentionally outside the API.
+
+Breaking changes from 0.1:
+
+- Removed `inference_data_to_dataframe` and `drop_sample_columns`
+- Removed dimensional variable flattening to columns such as `θ[school=Choate]`
 
 ## License
 
