@@ -1,17 +1,8 @@
 ### A Pluto.jl notebook ###
-# v0.20.4
+# v1.0.1
 
 using Markdown
 using InteractiveUtils
-
-# ╔═╡ 6c3b2ad8-7623-11f1-9de6-61b488dbfaeb
-md"""
-# ArviZ pair plot from NetCDF
-
-This notebook loads a NetCDF file into an `InferenceData`, builds a pair plot with
-`ArviZPairPlots.pairplot`, and saves it to an output file. Adjust the paths and
-selected variables in the **Configuration** cell below.
-"""
 
 # ╔═╡ 6c3d6262-7623-11f1-8a28-253c4620f101
 begin
@@ -24,14 +15,23 @@ begin
     using CairoMakie
 end
 
+# ╔═╡ 6c3b2ad8-7623-11f1-9de6-61b488dbfaeb
+md"""
+# ArviZ pair plot from NetCDF
+
+This notebook loads a NetCDF file into an `InferenceData`, builds a pair plot with
+`ArviZPairPlots.pairplot`, and saves it to an output file. Adjust the paths and
+selected variables in the **Configuration** cell below.
+"""
+
 # ╔═╡ 6c3d6316-7623-11f1-8a06-9d7197fb1556
 md"## Configuration"
 
 # ╔═╡ 6c3d632a-7623-11f1-a7f8-cf310414206d
 begin
-    input_file = joinpath(@__DIR__, "chains.nc")
+    input_file = joinpath(@__DIR__, "../data/mcmc-H0-gamma-kappa-z_peak-det=S2,R2-seed42-20260630-084129.nc")
     output_file = joinpath(@__DIR__, "pairplot.png")
-    var_names = [:mu, :tau]
+    var_names = [:H0, :gamma, :kappa, :z_peak]
     group = :posterior
 end
 

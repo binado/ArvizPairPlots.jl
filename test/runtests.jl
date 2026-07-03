@@ -1,5 +1,4 @@
 using ArviZPairPlots
-using DataFrames
 using InferenceObjects
 using NCDatasets
 import PairPlots
@@ -7,44 +6,35 @@ using Test
 
 const DD = InferenceObjects.DimensionalData
 
+function _axis_labels(fig)
+    labels = String[]
+    for axis in fig.content
+        hasproperty(axis, :xlabel) && push!(labels, axis.xlabel[])
+        hasproperty(axis, :ylabel) && push!(labels, axis.ylabel[])
+    end
+    return labels
+end
+
 @testset "ArviZPairPlots" begin
-    @testset "scalar and dimensional variables" begin
-        scalar = reshape(collect(1:6), 3, 2)
-        vector = reshape(collect(11:22), 3, 2, 2)
-        matrix = reshape(collect(101:124), 3, 2, 2, 2)
+    @testset "scalar selection" begin
         idata = from_namedtuple(
-            (; scalar, vector, matrix);
-            dims=(vector=[:school], matrix=[:feature, :class]),
-            coords=(school=["Choate", "Deerfield"], feature=["x", "y"], class=["A", "B"]),
+            (
+                alpha=reshape(collect(1.0:12.0), 6, 2),
+                beta=reshape(collect(2.0:13.0), 6, 2),
+            ),
         )
 
-        df = inference_data_to_dataframe(idata)
+        table = ArviZPairPlots._plot_table(
+            ArviZPairPlots._select_dataset(idata; var_names=[:alpha, :beta]),
+        )
+        @test Tuple(keys(table)) == (:alpha, :beta)
+        @test length(table.alpha) == 12
 
-        @test propertynames(df) == [
-            :chain,
-            :draw,
-            :scalar,
-            Symbol("vector[school=Choate]"),
-            Symbol("vector[school=Deerfield]"),
-            Symbol("matrix[feature=x, class=A]"),
-            Symbol("matrix[feature=x, class=B]"),
-            Symbol("matrix[feature=y, class=A]"),
-            Symbol("matrix[feature=y, class=B]"),
-        ]
-        @test df.chain == [1, 1, 1, 2, 2, 2]
-        @test df.draw == [1, 2, 3, 1, 2, 3]
-        @test df.scalar == collect(1:6)
-        @test df[!, Symbol("vector[school=Choate]")] == collect(11:16)
-        @test df[!, Symbol("vector[school=Deerfield]")] == collect(17:22)
-        @test df[!, Symbol("matrix[feature=x, class=A]")] == collect(101:106)
-        @test df[!, Symbol("matrix[feature=x, class=B]")] == collect(113:118)
-        @test df[!, Symbol("matrix[feature=y, class=A]")] == collect(107:112)
-        @test df[!, Symbol("matrix[feature=y, class=B]")] == collect(119:124)
-
-        # Regression: a scalar parameter is not expanded or duplicated merely because
-        # another parameter has coordinate dimensions.
-        @test size(df) == (6, 9)
-        @test count(==(:scalar), propertynames(df)) == 1
+        fig = pairplot(idata; var_names=[:alpha])
+        @test "alpha" in _axis_labels(fig)
+        @test "beta" ∉ _axis_labels(fig)
+        @test "chain" ∉ _axis_labels(fig)
+        @test "draw" ∉ _axis_labels(fig)
     end
 
     @testset "selection and normalization" begin
@@ -63,33 +53,43 @@ const DD = InferenceObjects.DimensionalData
             coords=(school=["A", "B"],),
         )
 
-        df = inference_data_to_dataframe(
+        @test_throws ArgumentError pairplot(
             idata;
             group=:prior,
             var_names="alpha",
             coords=Dict("school" => DD.At(["B"])),
         )
-        @test propertynames(df) == [:chain, :draw, Symbol("alpha[school=B]")]
-        @test df[!, 3] == collect(105:108)
 
-        ordered = inference_data_to_dataframe(idata; var_names=[:beta, "alpha"])
-        @test propertynames(ordered)[3:end] == [
-            :beta, Symbol("alpha[school=A]"), Symbol("alpha[school=B]")
-        ]
+        fig = pairplot(idata; var_names=[:beta])
+        @test "beta" in _axis_labels(fig)
 
-        symbol_coord = inference_data_to_dataframe(
-            idata; var_names=:alpha, coords=(school=DD.At(["A"]),)
+        scalar_idata = from_namedtuple(
+            (
+                beta=reshape(collect(21:24), 2, 2),
+                alpha=reshape(collect(1:4), 2, 2),
+            ),
         )
-        @test propertynames(symbol_coord)[3] == Symbol("alpha[school=A]")
+        ordered = ArviZPairPlots._plot_table(
+            ArviZPairPlots._select_dataset(scalar_idata; var_names=[:beta, "alpha"]),
+        )
+        @test Tuple(keys(ordered)) == (:beta, :alpha)
     end
 
-    @testset "missing values" begin
-        values = Matrix{Union{Missing,Float64}}(reshape(collect(1.0:6.0), 3, 2))
-        values[2, 1] = missing
-        idata = InferenceData(; posterior=namedtuple_to_dataset((value=values,)))
-        df = inference_data_to_dataframe(idata)
-        @test ismissing(df.value[2])
-        @test nrow(df) == 6
+    @testset "dimensional variables rejected" begin
+        idata = from_namedtuple(
+            (theta=reshape(collect(1.0:24.0), 6, 2, 2),);
+            dims=(theta=[:school],),
+            coords=(school=["A", "B"],),
+        )
+
+        err = try
+            pairplot(idata; var_names=:theta)
+        catch exception
+            exception
+        end
+        @test err isa ArgumentError
+        @test occursin("only scalar variables", sprint(showerror, err))
+        @test occursin("school", sprint(showerror, err))
     end
 
     @testset "validation" begin
@@ -99,7 +99,7 @@ const DD = InferenceObjects.DimensionalData
         )
 
         err = try
-            inference_data_to_dataframe(idata; group=:missing_group)
+            pairplot(idata; group=:missing_group)
         catch exception
             exception
         end
@@ -107,60 +107,31 @@ const DD = InferenceObjects.DimensionalData
         @test occursin("available groups", sprint(showerror, err))
 
         err = try
-            inference_data_to_dataframe(idata; var_names=:missing_var)
+            pairplot(idata; var_names=:missing_var)
         catch exception
             exception
         end
         @test err isa ArgumentError
         @test occursin("available variables", sprint(showerror, err))
 
-        @test_throws ArgumentError inference_data_to_dataframe(idata; var_names=Symbol[])
-        @test_throws ArgumentError inference_data_to_dataframe(idata; var_names=[:alpha, :alpha])
-        @test_throws ArgumentError inference_data_to_dataframe(idata; coords=[])
+        @test_throws ArgumentError pairplot(idata; var_names=Symbol[])
+        @test_throws ArgumentError pairplot(idata; var_names=[:alpha, :alpha])
+        @test_throws ArgumentError pairplot(idata; coords=[])
 
         observed = from_namedtuple(
             (alpha=reshape(collect(1:4), 2, 2),);
             observed_data=(y=collect(1:3),),
             dims=(y=[:observation],),
         )
-        @test_throws ArgumentError inference_data_to_dataframe(
-            observed; group=:observed_data
-        )
+        @test_throws ArgumentError pairplot(observed; group=:observed_data)
 
         strings = InferenceData(
             ; posterior=namedtuple_to_dataset((label=reshape(["a", "b"], 2, 1),))
         )
-        @test_throws ArgumentError inference_data_to_dataframe(strings)
+        @test_throws ArgumentError pairplot(strings)
 
         reserved = from_namedtuple((chain=reshape(collect(1:2), 2, 1),))
-        @test_throws ArgumentError inference_data_to_dataframe(reserved)
-
-        duplicate_keys = from_namedtuple(
-            (alpha=reshape(collect(1:4), 2, 2),); coords=(chain=[1, 1],)
-        )
-        @test_throws ArgumentError inference_data_to_dataframe(duplicate_keys)
-
-        collision_name = Symbol("theta[school=A]")
-        collision_data = NamedTuple{(:theta, collision_name)}(
-            (reshape(collect(1:2), 1, 1, 2), reshape([3], 1, 1))
-        )
-        collision = from_namedtuple(
-            collision_data; dims=(theta=[:school],), coords=(school=["A", "B"],)
-        )
-        @test_throws ArgumentError inference_data_to_dataframe(collision)
-
-        within_variable_collision = from_namedtuple(
-            (theta=reshape(collect(1:2), 1, 1, 2),);
-            dims=(theta=[:school],),
-            coords=(school=Any[1, "1"],),
-        )
-        @test_throws ArgumentError inference_data_to_dataframe(within_variable_collision)
-
-        left = DataFrame(chain=[1], draw=[1], a=[1.0])
-        right = DataFrame(chain=[1], draw=[2], b=[2.0])
-        @test_throws ArgumentError ArviZPairPlots._merge_variable_frame!(
-            left, right, :b
-        )
+        @test_throws ArgumentError pairplot(reserved)
     end
 
     @testset "PairPlots integration" begin
@@ -174,11 +145,23 @@ const DD = InferenceObjects.DimensionalData
         @test fig isa PairPlots.Makie.Figure
         @test fig.scene.theme[:fontsize][] == 17
 
-        labels = String[]
-        for axis in fig.content
-            hasproperty(axis, :xlabel) && push!(labels, axis.xlabel[])
-            hasproperty(axis, :ylabel) && push!(labels, axis.ylabel[])
-        end
+        labels = _axis_labels(fig)
+        @test "alpha" in labels
+        @test "beta" in labels
+        @test "chain" ∉ labels
+        @test "draw" ∉ labels
+    end
+
+    @testset "GridLayout dispatch" begin
+        idata = from_namedtuple(
+            (
+                alpha=reshape(collect(1.0:12.0), 6, 2),
+                beta=reshape(collect(2.0:13.0), 6, 2),
+            ),
+        )
+        fig = PairPlots.Makie.Figure()
+        pairplot(fig[1, 1], idata; var_names=[:alpha, :beta])
+        labels = _axis_labels(fig)
         @test "alpha" in labels
         @test "beta" in labels
         @test "chain" ∉ labels
@@ -196,8 +179,9 @@ const DD = InferenceObjects.DimensionalData
             path = joinpath(directory, "chains.nc")
             to_netcdf(source, path)
             loaded = from_netcdf(path)
-            @test inference_data_to_dataframe(loaded) ==
-                inference_data_to_dataframe(source)
+            source_table = ArviZPairPlots._plot_table(ArviZPairPlots._select_dataset(source))
+            loaded_table = ArviZPairPlots._plot_table(ArviZPairPlots._select_dataset(loaded))
+            @test source_table == loaded_table
         end
     end
 end
